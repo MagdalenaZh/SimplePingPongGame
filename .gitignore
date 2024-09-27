@@ -1,0 +1,17 @@
+
+# Eclipse specific files
+.classpath
+.project
+.settings/
+
+# Java compiled files
+*.class
+*.jar
+
+# Logs and other temporary files
+*.log
+*.tmp
+
+# IDE-specific directories
+.idea/
+.vscode/
