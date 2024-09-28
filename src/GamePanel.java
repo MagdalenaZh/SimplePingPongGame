@@ -2,210 +2,202 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import javax.swing.*;
+import javax.swing.Timer;
 
-//the panel where everything is painted 
-public class GamePanel extends JPanel implements Runnable{
 
-	//FINAL - prohibits from accidentally modifying this var
-	static final int GAME_WIDTH = 1000;
-	//making the height and width ratio correspond to real life ping pong table
-	static final int GAME_HEIGHT = (int)(GAME_WIDTH * (0.5555));
-	
-	static final Dimension SCREEN_SIZE = new Dimension(GAME_WIDTH, GAME_HEIGHT);
-	//the higher the ball the higher the diameter
-	static final int BALL_DIAMETER = 20;
-	
-	static final int PADDLE_WIDTH = 25;
-	
-	static final int PADDLE_HEIGHT = 100;
-	
-	Thread gameThread;
-	Image image;
-	Graphics graphics;
-	Random random;
-	Paddle paddle1;
-	Paddle paddle2;
-	Ball ball;
-	Score score;
-	
-	
-	GamePanel(){
-		newPaddles();
-		newBall();
-		score = new Score(GAME_WIDTH, GAME_HEIGHT);
-		//this will focus on the keys
-		this.setFocusable(true);
-		//this will respond to key strokes 
-		this.addKeyListener(new AL());
-		this.setPreferredSize(SCREEN_SIZE);
-		
-		gameThread = new Thread(this);
-		gameThread.start();
-	}
-	
-	
-	//methods to call when wanting to restart game
-	public void newBall() {
-	//	random = new Random();
-		ball = new Ball((GAME_WIDTH/2)-(BALL_DIAMETER/2),(GAME_HEIGHT/2)-(BALL_DIAMETER/2), BALL_DIAMETER,  BALL_DIAMETER);
-		
-	}
-	
-	public void newPaddles() {
-		paddle1 = new Paddle(0,(GAME_HEIGHT/2)-(PADDLE_HEIGHT/2), PADDLE_WIDTH, PADDLE_HEIGHT,1);
-		paddle2 = new Paddle(GAME_WIDTH - PADDLE_WIDTH,(GAME_HEIGHT/2)-(PADDLE_HEIGHT/2), PADDLE_WIDTH, PADDLE_HEIGHT,2);
-	}
-	
-	//method to paint stuff on the screen
-	public void paint(Graphics g) {
-		//create an image that has the dimensions of the width and height of the game panel
-        image = createImage(getWidth(), getHeight());
-        //create a graphic
-        graphics = image.getGraphics();
-        //call the draw method to draw all of the components
-        draw(graphics);
-        //starting at top left corner
-        g.drawImage(image,0,0,this);
+public class GamePanel extends JPanel implements Runnable {
+    static final int GAME_WIDTH = 1000;
+    static final int GAME_HEIGHT = (int) (GAME_WIDTH * 0.5555);
+    static final Dimension SCREEN_SIZE = new Dimension(GAME_WIDTH, GAME_HEIGHT);
+    static final int BALL_DIAMETER = 20;
+    static final int PADDLE_WIDTH = 25;
+    static final int PADDLE_HEIGHT = 100;
+    
+    boolean isGameRunning = false; // Control game start
+    Thread gameThread;
+    Image image;
+    Graphics graphics;
+    Random random;
+    Paddle paddle1;
+    Paddle paddle2;
+    Ball ball;
+    Score score;
+    
+    public GamePanel() {
+        random = new Random(); // Initialize the random object
+        newPaddles();
+        newBall();
+        score = new Score(GAME_WIDTH, GAME_HEIGHT);
+        this.setFocusable(true);
+        this.requestFocusInWindow();
+        this.addKeyListener(new AL());
+        this.setPreferredSize(SCREEN_SIZE);
+
+        gameThread = new Thread(this);
+        gameThread.start();
+    }
+
+
+ // Method to reset game state (called when "Start Game" is pressed)
+    public void resetGame() {
+        score.player1Score = 0;
+        score.player2Score = 0;
+        newBall();
+        newPaddles();
+        isGameRunning = false; // Keep the game paused
+    }
+
+    //TODO: fix delayed start of ball
+    // Method to start the game when "Start Game" button is pressed
+    public void startGame() {
+        resetGame(); // This resets scores, ball, and paddles
+        isGameRunning = true; // Allow the game to start
+        this.requestFocusInWindow(); // Ensure GamePanel gets focus for key events
+    }
+
+
+    public void newBall() {
+        random = new Random();
         
-	}
-	public void draw(Graphics g) {
-		paddle1.draw(g);
-		paddle2.draw(g);
-		ball.draw(g);
-		score.draw(g);
-	}
-	
-	//method to move things after each iteration of game loop
-	public void move() {
-		paddle1.move();
-		paddle2.move();
-		ball.move();
-	}
-	
-	//method to check collision 
-	public void checkCollision() {
-		//bounce the ball off the top and bottom 
-		if(ball.y <= 0) {
-			ball.setYDiraction(-ball.yVelocity);
-		}
-		if(ball.y >= GAME_HEIGHT-BALL_DIAMETER) {
-			ball.setYDiraction(-ball.yVelocity);
-		}
-		
-		//bounces ball off paddles
-		if(ball.intersects(paddle1)) {
-			ball.xVelocity = Math.abs(ball.xVelocity);
-			ball.xVelocity++;
-			if(ball.yVelocity > 0) {
-				ball.yVelocity++;
-			}
-			else {
-				ball.yVelocity--;
-			}
-			ball.setXDiraction(ball.xVelocity);
-			ball.setYDiraction(ball.yVelocity);
-		}
-		
-		if(ball.intersects(paddle2)) {
-			ball.xVelocity = Math.abs(ball.xVelocity);
-			ball.xVelocity++;
-			if(ball.yVelocity > 0) {
-				ball.yVelocity++;
-			}
-			else {
-				ball.yVelocity--;
-			}
-			ball.setXDiraction(-ball.xVelocity);
-			ball.setYDiraction(ball.yVelocity);
-		}
-		
-		
-		
-		//stops paddles at window edges
-		if(paddle1.y <= 0) {
-			paddle1.y = 0;
-		}
-		if(paddle1.y >= (GAME_HEIGHT-PADDLE_HEIGHT)) {
-			paddle1.y = GAME_HEIGHT-PADDLE_HEIGHT;
-		}
-		
-		if(paddle2.y <= 0) {
-			paddle2.y = 0;
-		}
-		if(paddle2.y >= (GAME_HEIGHT-PADDLE_HEIGHT)) {
-			paddle2.y = GAME_HEIGHT-PADDLE_HEIGHT;
-		}
-		
-		//give a player 1 point and create new paddle and ball
-		if(ball.x <= 0) {
-			score.player2Score++;
-			newPaddles();
-			newBall();
-			System.out.println("PLAYER 2: " + score.player2Score);
-		}
-		
-		if(ball.x >= GAME_WIDTH - BALL_DIAMETER) {
-			score.player1Score++;
-			newPaddles();
-			newBall();
-			System.out.println("PLAYER 1: " + score.player1Score);
-		}
-	}
-	
-	public void run() {
-	    // Initialize the last time check using the system's current time in nanoseconds
-	    long lastTime = System.nanoTime();
+        // Create a new ball at the center
+        ball = new Ball((GAME_WIDTH / 2) - (BALL_DIAMETER / 2), 
+                        (GAME_HEIGHT / 2) - (BALL_DIAMETER / 2), 
+                        BALL_DIAMETER, BALL_DIAMETER);
+        
+        // Set the initial direction randomly
+        int randomXDirection = random.nextBoolean() ? 1 : -1;
+        int randomYDirection = random.nextBoolean() ? 1 : -1;
+        
+        ball.setXDiraction(randomXDirection * ball.initialSpeed); // Initialize ball speed
+        ball.setYDiraction(randomYDirection * ball.initialSpeed);
+    }
 
-	    // Target frames per second (FPS), or updates per second, is 60.0
-	    double amountOfTicks = 60.0;
 
-	    // How many nanoseconds each tick or update takes (1 second / 60 updates)
-	    double ns = 1000000000 / amountOfTicks;
 
-	    // Delta will track the time difference and accumulate to decide when to update
-	    double delta = 0;
+    public void newPaddles() {
+        paddle1 = new Paddle(0, (GAME_HEIGHT / 2) - (PADDLE_HEIGHT / 2), PADDLE_WIDTH, PADDLE_HEIGHT, 1);
+        paddle2 = new Paddle(GAME_WIDTH - PADDLE_WIDTH, (GAME_HEIGHT / 2) - (PADDLE_HEIGHT / 2), PADDLE_WIDTH, PADDLE_HEIGHT, 2);
+    }
 
-	    // Infinite game loop
-	    while(true) {
-	        // Get the current time in nanoseconds
-	        long now = System.nanoTime();
+    public void paint(Graphics g) {
+        image = createImage(getWidth(), getHeight());
+        graphics = image.getGraphics();
+        draw(graphics);
+        g.drawImage(image, 0, 0, this);
+    }
 
-	        // Calculate how much time has passed since the last update and add it to delta
-	        // delta increases by the fraction of a full update (tick) that has passed
-	        delta += (now - lastTime) / ns;
+    public void draw(Graphics g) {
+        paddle1.draw(g);
+        paddle2.draw(g);
+        ball.draw(g);
+        score.draw(g);
+    }
 
-	        // Update the lastTime to the current time for the next loop iteration
-	        lastTime = now;
+    public void move() {
+        if (isGameRunning) { // Only move if the game is running
+            paddle1.move();
+            paddle2.move();
+            ball.move();
+        }
+    }
 
-	        // If enough time has passed to process at least one game tick
-	        if(delta >= 1) {
-	            // Call methods to update the game state
-	            move();           // Update positions of game objects
-	            checkCollision(); // Check for collisions between objects
-	            repaint();        // Render the updated game state on the screen
+    public void checkCollision() {
+        if (!isGameRunning) return; // Prevent checking collisions when the game is not running
 
-	            // Subtract 1 from delta, indicating we processed one tick
-	            // If delta > 1, this will allow multiple updates in a single iteration (catch up)
-	            delta--;
-	        }
-	    }
-	}
+        // Ball bouncing off top and bottom edges
+        if (ball.y <= 0) {
+            ball.setYDiraction(-ball.yVelocity);
+        }
+        if (ball.y >= GAME_HEIGHT - BALL_DIAMETER) {
+            ball.setYDiraction(-ball.yVelocity);
+        }
 
-	
-	//inner class action listener 
-	public class AL extends KeyAdapter{
-		
-		public void keyPressed(KeyEvent e) {
-			paddle1.keyPressed(e);
-			paddle2.keyPressed(e);
-		}
-		
-		public void keyReleased(KeyEvent e) {
-			paddle1.keyReleased(e);
-			paddle2.keyReleased(e);
-		}
-		
-	}
-	
-	
+        // Ball bouncing off paddles
+        if (ball.intersects(paddle1)) {
+            ball.xVelocity = Math.abs(ball.xVelocity);
+            ball.xVelocity++;
+            ball.yVelocity = (ball.yVelocity > 0) ? ball.yVelocity + 1 : ball.yVelocity - 1;
+            ball.setXDiraction(ball.xVelocity);
+            ball.setYDiraction(ball.yVelocity);
+        }
+
+        if (ball.intersects(paddle2)) {
+            ball.xVelocity = Math.abs(ball.xVelocity);
+            ball.xVelocity++;
+            ball.yVelocity = (ball.yVelocity > 0) ? ball.yVelocity + 1 : ball.yVelocity - 1;
+            ball.setXDiraction(-ball.xVelocity);
+            ball.setYDiraction(ball.yVelocity);
+        }
+
+        // Paddles stop at window edges
+        if (paddle1.y <= 0) paddle1.y = 0;
+        if (paddle1.y >= GAME_HEIGHT - PADDLE_HEIGHT) paddle1.y = GAME_HEIGHT - PADDLE_HEIGHT;
+        if (paddle2.y <= 0) paddle2.y = 0;
+        if (paddle2.y >= GAME_HEIGHT - PADDLE_HEIGHT) paddle2.y = GAME_HEIGHT - PADDLE_HEIGHT;
+
+        // Give a player 1 point and create new paddles and ball
+        if (ball.x <= 0) {
+            score.player2Score++;
+            newPaddles();
+            newBall();
+            isGameRunning = false; // Pause game after score
+            System.out.println("PLAYER 2: " + score.player2Score);
+            restartGame();
+        }
+        if (ball.x >= GAME_WIDTH - BALL_DIAMETER) {
+            score.player1Score++;
+            newPaddles();
+            newBall();
+            isGameRunning = false; // Pause game after score
+            System.out.println("PLAYER 1: " + score.player1Score);
+            restartGame();
+        }
+    }
+
+    private void restartGame() {
+        // Use a timer to restart the game after a delay
+        new Timer(2000, new ActionListener() { // 2000 ms delay
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                isGameRunning = true; // Resume the game
+            }
+        }).start();
+    }
+
+    
+    //TODO: fix coninuos 
+    public void run() {
+        long lastTime = System.nanoTime();
+        double amountOfTicks = 60.0;
+        double ns = 1000000000 / amountOfTicks;
+        double delta = 0;
+
+        while (true) {
+            long now = System.nanoTime();
+            delta += (now - lastTime) / ns;
+            lastTime = now;
+
+            if (delta >= 1) {
+                if (isGameRunning) {  // Check if the game is running
+                    move();
+                    checkCollision();
+                    repaint();
+                }
+                delta--;
+            }
+        }
+    }
+
+
+    public class AL extends KeyAdapter {
+        public void keyPressed(KeyEvent e) {
+            paddle1.keyPressed(e);
+            paddle2.keyPressed(e);
+        }
+
+        public void keyReleased(KeyEvent e) {
+            paddle1.keyReleased(e);
+            paddle2.keyReleased(e);
+        }
+    }
 }
